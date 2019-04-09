@@ -2,6 +2,8 @@ plugins {
     id 'java'
 }
 
+def sbeVersion = '1.12.4'
+
 group 'hannes'
 version '1.0-SNAPSHOT'
 
@@ -11,8 +13,47 @@ repositories {
     mavenCentral()
 }
 
+configurations{
+    codecGeneration
+}
+
 dependencies {
     compile group: 'com.lmax', name: 'disruptor', version: '3.4.2'
     compile group: 'uk.co.real-logic', name: 'sbe-all', version: '1.12.4'
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile files('build/classes/java/generated')
+    testImplementation('org.junit.jupiter:junit-jupiter:5.4.2')
+    codecGeneration "uk.co.real-logic:sbe-tool:${sbeVersion}"
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+def generatedDir = file("${buildDir}/generated-src")
+sourceSets {
+    generated.java.srcDir generatedDir
+}
+
+compileJava.dependsOn 'compileGeneratedJava'
+
+compileGeneratedJava {
+    dependsOn 'generateCodecs'
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+    options.deprecation = true
+    classpath += configurations.codecGeneration
+}
+
+task generateCodecs(type: JavaExec) {
+    main = 'uk.co.real_logic.sbe.SbeTool'
+    classpath = configurations.codecGeneration
+    systemProperties(
+            'sbe.output.dir': generatedDir,
+            'sbe.target.language': 'Java',
+            'sbe.validation.stop.on.error': 'true')
+    args = ['src/main/resources/utbildningsinstans.xml']
 }

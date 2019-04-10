@@ -1,51 +1,44 @@
 package se.hannes.max;
 
 import org.agrona.concurrent.UnsafeBuffer;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import se.hannes.max.domain.Utbildningsinstans;
 import se.hannes.max.protocol.utbildningsinstans.MessageHeaderDecoder;
+import se.hannes.max.protocol.utbildningsinstans.MessageHeaderEncoder;
 import se.hannes.max.protocol.utbildningsinstans.UtbildninginstansDecoder;
 import se.hannes.max.protocol.utbildningsinstans.UtbildninginstansEncoder;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static java.nio.file.StandardOpenOption.*;
 
+@SuppressWarnings("WeakerAccess")
 public class ReadAndWriteTest {
 
+    private static final String TMPFILE = "output";
+
     @Test
+    @DisplayName("Read/Write from disk, two SMB messages of same typ")
     public void testReadAndWriteFromDisk() throws Exception {
         write();
-
-        // 64Kbytes
-        long heapSize = Runtime.getRuntime().totalMemory();
-
-        // Get maximum size of heap in bytes. The heap cannot grow beyond this size.
-        // Any attempt will result in an OutOfMemoryException.
-        long heapMaxSize = Runtime.getRuntime().maxMemory();
-
-        // Get amount of free memory within the heap in bytes. This size will increase
-        // after garbage collection and decrease as new objects are created.
-        long heapFreeSize = Runtime.getRuntime().freeMemory();
-        System.out.println("heapSize = " + heapSize);
-        System.out.println("heapMaxSize = " + heapMaxSize);
-        System.out.println("heapFreeSize = " + heapFreeSize);
-
-
         read();
+        Files.delete(Paths.get(TMPFILE));
     }
 
     private void write() throws Exception
     {
 
-        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(2048);
+        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(1024);
         final UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
-        int encodingLengthPlusHeader = writeUtbildningsinstans("ALG01", 0, directBuffer);
-        // encodingLengthPlusHeader += writeUtbildningsinstans("XKARY", encodingLengthPlusHeader, directBuffer);
-        Path encoding = Paths.get("output");
+        int encodingLengthPlusHeader = writeUtbildningsinstans("ALG01Ä", 0, directBuffer);
+        encodingLengthPlusHeader += writeUtbildningsinstans("XKARYÅ", encodingLengthPlusHeader, directBuffer);
+        Path encoding = Paths.get(TMPFILE);
         try (FileChannel channel = FileChannel.open(encoding, CREATE, WRITE))
         {
             byteBuffer.limit(encodingLengthPlusHeader);
@@ -56,34 +49,26 @@ public class ReadAndWriteTest {
 
     private int writeUtbildningsinstans(String kod, int offset, UnsafeBuffer directBuffer) {
         UtbildninginstansEncoder utbildningsinstans = new UtbildninginstansEncoder();
-        se.hannes.max.protocol.utbildningsinstans.MessageHeaderEncoder headerEncoder = new se.hannes.max.protocol.utbildningsinstans.MessageHeaderEncoder();
+        MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
         utbildningsinstans.wrapAndApplyHeader(directBuffer, offset, headerEncoder)
-                .version(42)
+                .version((short)offset)
                 .kod(kod)
-                .benamningSv("Algebra II")
-                .benamningEn("Algebra II ENG");
+                .benamningSv("Algebra II ("+kod+")")
+                .benamningEn("Algebra II ENG Ö");
         return utbildningsinstans.encodedLength() + headerEncoder.encodedLength();
     }
 
     private void read() throws IOException {
-        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
+        final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(1024);
         final UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
 
-        Path encoding = Paths.get("output");
+        Path encoding = Paths.get(TMPFILE);
         try (FileChannel channel = FileChannel.open(encoding, READ))
         {
-            // byteBuffer.limit(encodingLengthPlusHeader);
             channel.read(byteBuffer);
         }
         int offset = readUtbildningsinstans(directBuffer, 0);
-        System.out.println("offset = " + offset);
-        //offset = readUtbildningsinstans(directBuffer, offset);
-        //System.out.println("offset = " + offset);
-/*
-        System.out.println("bufferOffset = " + bufferOffset);
-        CAR_DECODER.wrap(directBuffer, bufferOffset + CAR_DECODER.encodedLength(), actingBlockLength, actingVersion);
-        System.out.println(CAR_DECODER.toString());
-*/
+        readUtbildningsinstans(directBuffer, offset);
     }
 
 
@@ -95,7 +80,12 @@ public class ReadAndWriteTest {
         final int actingBlockLength = headerDecoder.blockLength();
         final int actingVersion = headerDecoder.version();
         utbDecoder.wrap(directBuffer, offset + headerDecoder.encodedLength(), actingBlockLength, actingVersion);
-        System.out.println(utbDecoder.toString());
+        Utbildningsinstans utbildningsinstans = Utbildningsinstans.enUtbildningsinstans()
+                .setVersion(utbDecoder.version())
+                .setKod(utbDecoder.kod())
+                .setBenämningSv(utbDecoder.benamningSv())
+                .setBenämningEn(utbDecoder.benamningEn());
+        System.out.println("utbildningsinstans = " + utbildningsinstans);
         return utbDecoder.limit();
     }
 

@@ -1,16 +1,12 @@
 # Max
 
-## Generera SMB-filer
- 
-
 ## Mål
 
-* Spara ned fil med olika meddelanden
+* Spara ned fil med flera av samma meddelandetyp
 * Läs fil och tolka meddelanden
 * Skicka in de tolkade meddelandena i distruptorn och logga resultatet
-* Hantera anrop av flera typer av SMB meddelanden
-* Använda Disruptor för hantering av parallellism 
-* Replikering och Journaling före affärslogik
+* Samma sak som ovan fast med flera meddelandetyper
+* Inför rudimentär Replikering och Journaling före affärslogik
 * Övervakning/Benchmark
 * Återspelning av events
 * Snapshots

@@ -7,6 +7,7 @@
                    description="Utbildningsinstans">
     <types>
         <type name="string12" length="12" primitiveType="char" characterEncoding="ISO-8859-1"/>
+        <type name="string128" length="128" primitiveType="char" characterEncoding="ISO-8859-1"/>
         <composite name="messageHeader" description="Message identifiers and length of message root">
             <type name="blockLength" primitiveType="uint16"/>
             <type name="templateId" primitiveType="uint16"/>
@@ -20,9 +21,9 @@
     </types>
 
     <sbe:message name="Utbildninginstans" id="1" description="En version av en utbildning">
-        <field name="version" id="1" type="uint32"/>
+        <field name="version" id="1" type="uint8"/>
         <field name="kod" id="2" type="string12"/>
-        <data name="benamningSv" id="3" type="varStringEncoding"/>
-        <data name="benamningEn" id="4" type="varStringEncoding"/>
+        <field name="benamningSv" id="3" type="string128"/>
+        <field name="benamningEn" id="4" type="string128"/>
     </sbe:message>
 </sbe:messageSchema>
